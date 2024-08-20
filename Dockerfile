@@ -3,7 +3,7 @@ FROM ghcr.io/devopsplayground/base-container:latest
 ARG ARCHITECTURE=amd64 
 ARG PRODUCT=terraform
 ARG VERSION=1.9.4
-ARG HUGO_VERSION = "0.125.4"
+ARG HUGO_VERSION=0.125.4
 
 # Install Terraform
 RUN cd /tmp && \
