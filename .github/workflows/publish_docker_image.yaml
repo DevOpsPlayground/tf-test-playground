@@ -25,5 +25,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository | lower }}/tf_test_playground:latest
+          tags: ghcr.io/devopsplayground/tf_test_playground:latest
           labels: ${{ github.sha }} 
