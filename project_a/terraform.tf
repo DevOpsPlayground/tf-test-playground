@@ -8,3 +8,11 @@ terraform {
 
   required_version = "~> 1.2"
 }
+
+provider "aws" {
+  default_tags {
+    tags = {
+     Purpose = "tf-test"
+    }   
+  }
+}
