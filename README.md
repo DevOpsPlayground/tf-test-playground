@@ -7,10 +7,12 @@ If you fall behind or believe you've made a mistake when making changes to the m
 First thing we need to do is deploy our 2 applications which are both using our local S3 module. Once they're set up, we can begin implementing the features requested by each application and then implement.
 
 ## 1.1a Deploy Application A
+Firstly, we need to set some of values for the variables that will be universal
+
 FirsTo deploy Application A, we need to init Terraform and run an apply.
 
 ```bash
-cd ~/tf-test-playground/project_a && terraform init
+cd ~/terraform-aws-terraform-test/project_a && terraform init
 ```
 
 Then apply the Terraform configuration:
@@ -28,7 +30,7 @@ http://[panda_name]-project-a.devopsplayground.org.s3-website-eu-west-2.amazonaw
 FirsTo deploy Application A, we need to init Terraform and run an apply.
 
 ```bash
-cd ~/tf-test-playground/project_b && terraform init
+cd ~/terraform-aws-terraform-test/project_b && terraform init
 ```
 
 Then apply the Terraform configuration:
@@ -69,7 +71,7 @@ variable "error_html_path" {
 
 The new feature is now available to use for Project A. Create a new file in Project A's html directory
 ```bash
-touch ~/tf-test-playground/project_a/html/error.html
+touch ~/terraform-aws-terraform-test/project_a/html/error.html
 ```
 Add the following html to the new **project_a/html/error.html** file
 ```html
@@ -83,16 +85,20 @@ Add the following html to the new **project_a/html/error.html** file
   </body>
 </html>
 ```
+Add the following argument to the **S3** module in project_a/main.tf
+```hcl
+error_html_path = "html/error.html"
+```
 We can now apply the changes to our module for Project A
 ```bash
-cd ~/tf-test-playground/project_a && terraform apply --auto-approve
+cd ~/terraform-aws-terraform-test/project_a && terraform apply --auto-approve
 ```
 
 We can see that our changes have applied successfully. If you navigate to the link in the output you will see the index.html page. Add a page that doesn't exist to the end of the url and this should show us our new error page.
 
 Project B doesn't want to implement this feature and to keep using the module as they currently are. Let's run a plan to check there are no changes.
 ```bash
-cd ~/tf-test-playground/project_b && terraform plan
+cd ~/terraform-aws-terraform-test/project_b && terraform plan
 ```
 
 Our plan has returned an error! This is because our new feature hasn't been created to be optional. Let's fix that but first, we'll set up Terraform Test and write our tests
@@ -100,11 +106,11 @@ Our plan has returned an error! This is because our new feature hasn't been crea
 ## 2.2 Terraform Test
 When we run **terraform test**, it will look for test files within the root directory or, if it exists, within the **tests** directory. We will create a **tests** directory and our first test file
 ```bash
-mkdir ~/tf-test-playground/module/tests && touch ~module/tests/website.tftest.hcl
+mkdir ~/terraform-aws-terraform-test/module/tests && touch ~/terraform-aws-terraform-test/module/tests/website.tftest.hcl
 ```
 One of the things we can do with Terraform Test is create supporting resources to satisfy the dependancies of our modules. Let's create a **setup** directory to put our supporting Terraform resources in.
 ```bash
-mkdir ~/tf-test-playground/module/tests/setup && touch ~/module/tests/setup/main.tf
+mkdir ~/terraform-aws-terraform-test/module/tests/setup && touch ~/terraform-aws-terraform-test/module/tests/setup/main.tf
 ```
 Then add the following terraform code to **module/tests/setup/main.tf**
 ```hcl
@@ -125,9 +131,9 @@ output "random_prefix" {
     value = random_pet.random_prefix.id
 }
 ```
-Then we need to add index.html and error.html files for our module to use during the tests.
+Then we need to add module/tests/html/index.html and module/tests/html/error.html files for our module to use during the tests.
 ```bash
-mkdir ~tf-test-playground/module/tests/setup && touch ~/tf-test-playground/module/tests/html/index.html && touch ~/tf-test-playground/module/tests/html/error.html
+mkdir ~/terraform-aws-terraform-test/module/tests/html && touch ~/terraform-aws-terraform-test/module/tests/html/index.html && touch ~/terraform-aws-terraform-test/module/tests/html/error.html
 ```
 Add the following to index.html:
 ```html
@@ -164,7 +170,6 @@ run "setup_tests" {
 
 variables {
   index_html_path = "./tests/html/index.html"
-  error_html_path = "./tests/html/error.html"
 }
 
 run "create_bucket" {
@@ -191,7 +196,7 @@ Terraform test files are executed sequentially. So we start with our setup run b
 Lastly, we have the create_bucket run block. This starts by defining additional variables followed by 2 assert blocks that tests the logic of our Terraform deployment. The first assert block checks that the bucket name is what we expect based on the variables we provided. If this returns false, the test will fail and the error message "Invalid bucket name" is returned. The 2nd assert block checks that the index.html file that we uploaded exists and is the same content as what is in s3.
 
 ```bash
-cd ~/tf-test-playground/module && terraform init && terraform test
+cd ~/terraform-aws-terraform-test/module && terraform init && terraform test
 ```
 You should then see the following output in your terminal
 ```bash
@@ -231,17 +236,23 @@ resource "aws_s3_object" "error" {
 ```
 Now rerun our tests and they should pass
 ```bash
-cd ~/tf-test-playground/module && terraform test
+cd ~/terraform-aws-terraform-test/module && terraform test
 ```
+
+Finally, let's check that project_b will now plan
+```bash
+cd ~/terraform-aws-terraform-test/project_b && terraform plan
+```
+
 # 3. CloudFront HTTPS Website
 Project B would like the module to allow them to secure their website hosted on S3 using HTTPS.
 
-To achieve this, we can use CloudFront (this was covered in our May 2024 DevOps Playground https://github.com/DevOpsPlayground/deploying-hugo-website/tree/main). We have already complete Step 1 by creating S3 buckets, so we now need to create ACM Certificate resources followed by CloudFront.
+To achieve this, we can use CloudFront (this was covered in our May 2024 DevOps Playground https://github.com/DevOpsPlayground/deploying-hugo-website/tree/main). We have already completed Step 1 by creating S3 buckets, so we now need to create ACM Certificate resources followed by CloudFront.
 
 ## 3.1a ACM
 First start by creating a new acm.tf file in the module for our acm resources
 ```bash
-touch ~/tf-test-playground/module/acm.tf
+touch ~/terraform-aws-terraform-test/module/acm.tf
 ```
 Firstly, let's create a new variable that we can use to help conditionally create our new feature so we can avoid the same issue we faced when adding the error page to our S3 bucket. Add the following to module/variables.tf
 ```hcl
@@ -288,7 +299,7 @@ run "create_acm_certificate" {
     panda_name        = run.setup_tests.random_prefix
     index_html_path   = "./tests/html/index.html"
     error_html_path   = "./tests/html/error.html"
-    domain            = "pootleflump.link"
+    domain            = "devopsplayground.org"
     deploy_cloudfront = true
   }
 
@@ -306,17 +317,20 @@ run "create_acm_certificate" {
 
 Now run Terraform Test again and these should pass
 ```bash
-cd ~/tf-test-playground/module && terraform test
+cd ~/terraform-aws-terraform-test/module && terraform test
 ```
 
 ## 3.2a CloudFront
 
 ```bash
-touch ~/tf-test-playground/module/cloudfront.tf
+touch ~/terraform-aws-terraform-test/module/cloudfront.tf
 ```
 
+Add the following to **module/cloudfront.tf**
 ```hcl
 resource "aws_cloudfront_origin_access_control" "this" {
+  count = var.deploy_cloudfront ? 1 : 0
+
   name                              = "oac for ${var.panda_name}"
   description                       = ""
   origin_access_control_origin_type = "s3"
@@ -325,6 +339,8 @@ resource "aws_cloudfront_origin_access_control" "this" {
 }
 
 resource "aws_cloudfront_distribution" "this" {
+  count = var.deploy_cloudfront ? 1 : 0
+
   enabled             = true
   comment             = "CDN for ${var.panda_name}"
   default_root_object = "index.html"
@@ -336,11 +352,11 @@ resource "aws_cloudfront_distribution" "this" {
   origin {
     domain_name              = aws_s3_bucket.this.bucket_regional_domain_name
     origin_id                = aws_s3_bucket.this.bucket_regional_domain_name
-    origin_access_control_id = aws_cloudfront_origin_access_control.this.id
+    origin_access_control_id = aws_cloudfront_origin_access_control.this[0].id
   }
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate.this.arn
+    acm_certificate_arn      = aws_acm_certificate.this[0].arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2018"
   }
@@ -366,22 +382,22 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 }
-```
 
-Then add the following to module/cloudfront.tf
-```
 resource "aws_route53_record" "cloudfront_alias" {
-  zone_id = data.aws_route53_zone.this.zone_id
+  count = var.deploy_cloudfront ? 1 : 0
+
+  zone_id = data.aws_route53_zone.this[0].zone_id
   name    = local.url
   type    = "A"
 
   alias {
-    name                   = aws_cloudfront_distribution.this.domain_name
-    zone_id                = aws_cloudfront_distribution.this.hosted_zone_id
+    name                   = aws_cloudfront_distribution.this[0].domain_name
+    zone_id                = aws_cloudfront_distribution.this[0].hosted_zone_id
     evaluate_target_health = false
   }
 }
 ```
+
 add the following outputs to module/outputs.tf
 ```hcl
 output "website_url" {
@@ -389,19 +405,81 @@ output "website_url" {
 }
 
 output "cloudfront_distribution_id" {
-  value = try(aws_cloudfront_distribution.this.id)
+  value = try(aws_cloudfront_distribution.this[0].id, "")
 }
 ```
 
 ## 3.2b CloudFront - Terraform Test
-Because CloudFront can have a long provisioning time, we are going to limit these tests to plans only. This will ensure our tests pass or fail quickly
+Because CloudFront can have a long provisioning time, we are going to limit these tests to plans only. This will ensure our tests pass or fail quickly however the trade-off is the scope of the test is reduced.
+
+Create a new CloudFront test file:
+```bash
+touch ~/terraform-aws-terraform-test/module/tests/cloudfront.tftest.hcl
+```
+
+Add the following Terraform configuration to the new file **module/tests/cloudfront.tftest.hcl**
+```hcl
+run "setup_tests" {
+  module {
+    source = "./tests/setup"
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+override_resource {
+  target = aws_route53_record.this[0]
+}
+
+override_resource {
+  target = aws_acm_certificate.this[0]
+}
+
+run "create_cloudfront" {
+  command = plan
+  variables {
+    panda_name        = run.setup_tests.random_prefix
+    index_html_path   = "./tests/html/index.html"
+    error_html_path   = "./tests/html/error.html"
+    domain            = "devopsplayground.org"
+    deploy_cloudfront = true
+  }
+}
+```
+Because we are now creating CloudFront resources that didn't previously exist when we were testing the ACM resources, we should also add the following **override_resource** blocks before the ACM run block. This will mock the cloudfront resources as all we are interested in is the ACM functionality.
+
+As we are doing an **apply** for ACM but only a **plan** for CloudFront, this is why we are testing separately and using the overrides.
 
 ```hcl
+override_resource {
+  target = aws_cloudfront_distribution.this[0]
+}
+
+override_resource {
+  target = aws_route53_record.cloudfront_alias[0]
+}
 ```
-- add setup resources
-- add plan run block
-- run tests
-- deploy for project A
+
+Then run the test
+```bash
+cd ~/terraform-aws-terraform-test/module && terraform test
+```
+
+Now let's deploy our module for project_a. Add the following argument to the **s3** module block
+```hcl
+deploy_cloudfront = true
+````
+
+Now let's apply the changes
+```bash
+cd ~/terraform-aws-terraform-test/project_a && terraform init && terraform apply --auto-approve
+```
+Finally, let's check that project_b plans with no changes
+```bash
+cd ~/terraform-aws-terraform-test/project_a && terraform init && terraform plan
+```
 
 # 4. (Optional) Terraform Cloud
 You can test deploying this module to a HCP Terraform registry. We will use the DevOps Playground Gitlab repo and point the module to the complete Terraform configuration in steps/3-Cloud-Front. Optionally, you can fork the this repo to your own Github account.
@@ -424,7 +502,7 @@ Using the left-hand menu, select **Registry**
 
 Then click the button **Publish** > **Module**
 
-Select the **Github** provider, then input in the box ```terraform-aws-devopsplayground-august-2024```
+Select the **Github** provider, then input in the box ```terraform-aws-terraform-test```
 
 On the **Add Module** screen, choose **Branch** for the module publish type and provide the following values:
 - Module Publish Type: Branch
@@ -455,11 +533,11 @@ Go to **Module variables**, and click the **+ Add variable** button and add each
 Now let's run the tests in HCP Terraform Cloud by triggering them from our terminal. First we need to change branch
 
 ```bash
-cd ~/tf-test-playground && git checkout HCP
+cd ~/terraform-aws-terraform-test && git checkout HCP
 ```
 
 Now we can run our tests. You will need to make a note of your Terraform Cloud organisation name and replace <org-name> in the following command
 
 ```bash
-terraform test -cloud-run=app.terraform.io/<org-name>/devopsplayground-august-2024/aws
+terraform test -cloud-run=app.terraform.io/<org-name>/terraform-test/aws
 ```
